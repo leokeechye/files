@@ -1,0 +1,371 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Transport Delay Agentic Architecture (Simulation Mode)</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --speed: 1.8s;
+    --font-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    --color-text-primary: #111111;
+    --color-text-secondary: #444444;
+    --color-text-tertiary: #777777;
+    --color-text-info: #185FA5;
+    --color-text-success: #3B6D11;
+    --color-background-primary: #fff;
+    --color-background-secondary: #f5f5f3;
+    --color-border-secondary: #c8c8c4;
+    --color-border-tertiary: rgba(0,0,0,0.15);
+    --color-background-info: #E6F1FB;
+    --color-border-info: #85B7EB;
+    --border-radius-md: 8px;
+  }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background: #ffffff;
+    color: #111111;
+    padding: 1.5rem;
+    max-width: 780px;
+    margin: 0 auto;
+  }
+  h1 {
+    font-size: 20px; font-weight: 600; margin-bottom: 1rem;
+    color: #111111;
+  }
+  .controls { display: flex; align-items: center; gap: 10px; margin: 0 0 12px; flex-wrap: wrap; }
+  .controls button {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    font-size: 14px; padding: 7px 16px; cursor: pointer;
+    background: transparent; border: 1px solid #c8c8c4;
+    border-radius: 8px; color: #111111;
+    transition: background .15s;
+  }
+  .controls button:hover { background: #f5f5f3; }
+  .controls button.active { background: #E6F1FB; color: #185FA5; border-color: #85B7EB; }
+  .step-dots { display: flex; gap: 4px; align-items: center; margin-left: auto; }
+  .dot { width: 8px; height: 8px; border-radius: 50%; background: #cccccc; transition: all .3s; cursor: pointer; }
+  .dot.active { background: #185FA5; transform: scale(1.4); }
+  .dot.done { background: #3B6D11; }
+  .narration {
+    font-size: 14px; line-height: 1.7; color: #333333;
+    min-height: 80px; max-height: 220px; overflow-y: auto;
+    padding: 14px 18px; margin: 0 0 14px;
+    background: #f7f7f5; border-radius: 8px; border: 1px solid #e8e8e5;
+    transition: opacity .3s;
+  }
+  .narration strong { color: #111111; font-weight: 600; }
+  .narration em { color: #185FA5; font-style: normal; font-weight: 500; }
+  .narration::-webkit-scrollbar { width: 5px; }
+  .narration::-webkit-scrollbar-track { background: transparent; }
+  .narration::-webkit-scrollbar-thumb { background: #cccccc; border-radius: 3px; }
+  svg text { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
+  .agent-box { opacity: 0.25; transition: opacity .5s, filter .5s; }
+  .agent-box.active { opacity: 1; }
+  .agent-box.done { opacity: 0.6; }
+  .flow-line { stroke-dasharray: 6 4; stroke-dashoffset: 0; opacity: 0; transition: opacity .4s; }
+  .flow-line.active { opacity: 1; animation: dashFlow var(--speed) linear infinite; }
+  @keyframes dashFlow { to { stroke-dashoffset: -20; } }
+  @keyframes pulseGlow { 0%,100%{ opacity:.15 } 50%{ opacity:.45 } }
+  .glow { opacity: 0; transition: opacity .4s; }
+  .glow.active { animation: pulseGlow 1.6s ease-in-out infinite; }
+  .speed-label { font-size: 13px; color: #555555; }
+  input[type="range"] {
+    -webkit-appearance: none; appearance: none; height: 4px;
+    background: #c8c8c4; border-radius: 2px; outline: none;
+  }
+  input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none; width: 16px; height: 16px;
+    background: #ffffff; border: 1px solid #c8c8c4;
+    border-radius: 50%; cursor: pointer;
+  }
+</style>
+</head>
+<body>
+  <h1>Transport delay agentic architecture (simulation mode)</h1>
+
+  <div class="controls">
+    <button id="prevBtn" onclick="prev()">&#9664; Back</button>
+    <button id="playBtn" onclick="togglePlay()" class="active">&#9654; Play</button>
+    <button id="nextBtn" onclick="next()">Next &#9654;</button>
+    <span class="speed-label">Speed</span>
+    <input type="range" min="0.5" max="3" step="0.25" value="1" style="width:80px" oninput="setSpeed(this.value)">
+    <div class="step-dots" id="dots"></div>
+  </div>
+  <div class="narration" id="narration"></div>
+
+  <svg width="100%" viewBox="0 0 680 520" xmlns="http://www.w3.org/2000/svg">
+    <defs>
+      <marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+        <path d="M2 1L8 5L2 9" fill="none" stroke="context-stroke" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+      </marker>
+    </defs>
+
+    <rect x="115" y="115" width="455" height="340" rx="16" fill="none" stroke="rgba(0,0,0,0.15)" stroke-width="0.5" stroke-dasharray="4 3"/>
+    <text x="342" y="132" text-anchor="middle" fill="#555555" font-size="13" font-weight="500">Agentic orchestration core</text>
+
+    <g id="box-trigger" class="agent-box">
+      <rect x="6" y="10" width="108" height="64" rx="6" fill="#FCEBEB" stroke="#A32D2D" stroke-width="0.5"/>
+      <rect class="glow" id="glow-trigger" x="2" y="6" width="116" height="72" rx="8" fill="#E24B4A" opacity="0"/>
+      <text x="60" y="28" text-anchor="middle" fill="#791F1F" font-size="13" font-weight="600">Operational trigger</text>
+      <text x="60" y="44" text-anchor="middle" fill="#6B1A1A" font-size="11">Port congestion /</text>
+      <text x="60" y="58" text-anchor="middle" fill="#6B1A1A" font-size="11">carrier failure</text>
+    </g>
+
+    <g id="box-data" class="agent-box">
+      <rect x="6" y="200" width="108" height="80" rx="6" fill="#E6F1FB" stroke="#185FA5" stroke-width="0.5"/>
+      <rect class="glow" id="glow-data" x="2" y="196" width="116" height="88" rx="8" fill="#378ADD" opacity="0"/>
+      <text x="60" y="218" text-anchor="middle" fill="#042C53" font-size="12" font-weight="600">Data layer</text>
+      <text x="60" y="234" text-anchor="middle" fill="#0C447C" font-size="10.5">ETAs, lane reliability,</text>
+      <text x="60" y="248" text-anchor="middle" fill="#0C447C" font-size="10.5">inventory state,</text>
+      <text x="60" y="262" text-anchor="middle" fill="#0C447C" font-size="10.5">policy constraints</text>
+    </g>
+
+    <g id="box-sim" class="agent-box">
+      <rect x="215" y="10" width="250" height="62" rx="6" fill="#E6F1FB" stroke="#185FA5" stroke-width="0.5"/>
+      <rect class="glow" id="glow-sim" x="211" y="6" width="258" height="70" rx="8" fill="#378ADD" opacity="0"/>
+      <text x="340" y="29" text-anchor="middle" fill="#042C53" font-size="13" font-weight="600">Scenario & twin layer</text>
+      <text x="340" y="45" text-anchor="middle" fill="#0C447C" font-size="11">OR-Gym · AquarlisPrime · OpenFactoryTwin</text>
+      <text x="340" y="59" text-anchor="middle" fill="#0C447C" font-size="11">Monte Carlo delay propagation</text>
+    </g>
+
+    <g id="box-sense" class="agent-box">
+      <rect x="240" y="150" width="200" height="58" rx="8" fill="#FAEEDA" stroke="#854F0B" stroke-width="0.5"/>
+      <rect class="glow" id="glow-sense" x="236" y="146" width="208" height="66" rx="10" fill="#EF9F27" opacity="0"/>
+      <text x="340" y="170" text-anchor="middle" fill="#412402" font-size="13" font-weight="600">Impact sensing agent</text>
+      <text x="340" y="187" text-anchor="middle" fill="#633806" font-size="11">Detects ETA shifts, assesses risk</text>
+    </g>
+
+    <g id="box-plan" class="agent-box">
+      <rect x="130" y="240" width="170" height="58" rx="8" fill="#EEEDFE" stroke="#534AB7" stroke-width="0.5"/>
+      <rect class="glow" id="glow-plan" x="126" y="236" width="178" height="66" rx="10" fill="#7F77DD" opacity="0"/>
+      <text x="215" y="260" text-anchor="middle" fill="#26215C" font-size="13" font-weight="600">Logistics planner</text>
+      <text x="215" y="277" text-anchor="middle" fill="#3C3489" font-size="11">Reroute, expedite, split</text>
+    </g>
+
+    <g id="box-coord" class="agent-box">
+      <rect x="380" y="240" width="175" height="58" rx="8" fill="#E1F5EE" stroke="#0F6E56" stroke-width="0.5"/>
+      <rect class="glow" id="glow-coord" x="376" y="236" width="183" height="66" rx="10" fill="#1D9E75" opacity="0"/>
+      <text x="468" y="260" text-anchor="middle" fill="#04342C" font-size="13" font-weight="600">Coordination agent</text>
+      <text x="468" y="277" text-anchor="middle" fill="#085041" font-size="11">Carrier/3PL negotiation</text>
+    </g>
+
+    <g id="box-gov" class="agent-box">
+      <rect x="240" y="330" width="200" height="58" rx="8" fill="#FAECE7" stroke="#993C1D" stroke-width="0.5"/>
+      <rect class="glow" id="glow-gov" x="236" y="326" width="208" height="66" rx="10" fill="#D85A30" opacity="0"/>
+      <text x="340" y="350" text-anchor="middle" fill="#4A1B0C" font-size="13" font-weight="600">Governance agent</text>
+      <text x="340" y="367" text-anchor="middle" fill="#712B13" font-size="11">Cost, safety, compliance checks</text>
+    </g>
+
+    <g id="box-leader" class="agent-box">
+      <polygon points="610,359 640,330 670,359 640,388" fill="#FAEEDA" stroke="#854F0B" stroke-width="0.5"/>
+      <rect class="glow" id="glow-leader" x="606" y="326" width="68" height="66" rx="4" fill="#EF9F27" opacity="0"/>
+      <text x="640" y="355" text-anchor="middle" fill="#412402" font-size="10" font-weight="600">Leader</text>
+      <text x="640" y="368" text-anchor="middle" fill="#412402" font-size="10">gate</text>
+    </g>
+
+    <g id="box-exec" class="agent-box">
+      <rect x="360" y="415" width="175" height="52" rx="8" fill="#EAF3DE" stroke="#3B6D11" stroke-width="0.5"/>
+      <rect class="glow" id="glow-exec" x="356" y="411" width="183" height="60" rx="10" fill="#639922" opacity="0"/>
+      <text x="448" y="434" text-anchor="middle" fill="#173404" font-size="13" font-weight="600">Execution agent</text>
+      <text x="448" y="451" text-anchor="middle" fill="#27500A" font-size="11">Book, update, shadow mode</text>
+    </g>
+
+    <g id="box-learn" class="agent-box">
+      <rect x="130" y="415" width="175" height="52" rx="8" fill="#FBEAF0" stroke="#993556" stroke-width="0.5"/>
+      <rect class="glow" id="glow-learn" x="126" y="411" width="183" height="60" rx="10" fill="#D4537E" opacity="0"/>
+      <text x="218" y="434" text-anchor="middle" fill="#4B1528" font-size="13" font-weight="600">Learning agent</text>
+      <text x="218" y="451" text-anchor="middle" fill="#72243E" font-size="11">Calibrate lane reliability</text>
+    </g>
+
+    <g id="box-output" class="agent-box">
+      <rect x="255" y="488" width="170" height="28" rx="6" fill="#f5f5f3" stroke="#c8c8c4" stroke-width="0.5"/>
+      <rect class="glow" id="glow-output" x="251" y="484" width="178" height="36" rx="8" fill="#185FA5" opacity="0"/>
+      <text x="340" y="506" text-anchor="middle" fill="#111111" font-size="12" font-weight="600">Operations output</text>
+    </g>
+
+    <path id="flow-1" class="flow-line" d="M60 74 L60 120 L240 179" fill="none" stroke="#E24B4A" stroke-width="1.8" marker-end="url(#arrow)"/>
+    <path id="flow-2" class="flow-line" d="M114 240 L240 179" fill="none" stroke="#378ADD" stroke-width="1.8" marker-end="url(#arrow)"/>
+    <path id="flow-3" class="flow-line" d="M310 208 L260 240" fill="none" stroke="#EF9F27" stroke-width="1.8" marker-end="url(#arrow)"/>
+    <path id="flow-4a" class="flow-line" d="M215 240 L215 90 L215 72" fill="none" stroke="#7F77DD" stroke-width="1.8" marker-end="url(#arrow)"/>
+    <path id="flow-4b" class="flow-line" d="M260 72 L260 120 L260 240" fill="none" stroke="#378ADD" stroke-width="1.8" marker-end="url(#arrow)"/>
+    <path id="flow-5" class="flow-line" d="M300 269 L380 269" fill="none" stroke="#7F77DD" stroke-width="1.8" marker-end="url(#arrow)"/>
+    <path id="flow-6" class="flow-line" d="M380 280 L300 280" fill="none" stroke="#1D9E75" stroke-width="1.8" marker-end="url(#arrow)"/>
+    <path id="flow-7" class="flow-line" d="M280 298 L310 330" fill="none" stroke="#7F77DD" stroke-width="1.8" marker-end="url(#arrow)"/>
+    <path id="flow-8a" class="flow-line" d="M440 359 L610 359" fill="none" stroke="#D85A30" stroke-width="1.8" marker-end="url(#arrow)"/>
+    <path id="flow-8b" class="flow-line" d="M640 388 L640 420 L535 420 L535 375" fill="none" stroke="#EF9F27" stroke-width="1.4" marker-end="url(#arrow)"/>
+    <path id="flow-9" class="flow-line" d="M380 388 L420 415" fill="none" stroke="#639922" stroke-width="1.8" marker-end="url(#arrow)"/>
+    <path id="flow-10" class="flow-line" d="M360 441 L305 441" fill="none" stroke="#639922" stroke-width="1.8" marker-end="url(#arrow)"/>
+    <path id="flow-11" class="flow-line" d="M180 415 L180 298" fill="none" stroke="#D4537E" stroke-width="1.8" marker-end="url(#arrow)"/>
+    <path id="flow-12" class="flow-line" d="M420 467 L380 488" fill="none" stroke="#639922" stroke-width="1.8" marker-end="url(#arrow)"/>
+  </svg>
+
+<script>
+const steps = [
+  {
+    active: ['trigger'],
+    glows: ['trigger'],
+    flows: [],
+    text: '<strong>Step 1 — Disruption detected (Operational Trigger).</strong> The process begins when a critical transport lane experiences a disruption — this could be port congestion, a carrier failure, or a sudden spike in transit variability. In practice, this might look like a vessel being delayed at a major port terminal or a key freight carrier announcing capacity reductions on a high-volume lane. The disruption immediately threatens downstream replenishment, raising lead times and stockout risk across multiple nodes in the supply chain network.'
+  },
+  {
+    active: ['trigger','data'],
+    glows: ['data'],
+    flows: [],
+    text: '<strong>Step 2 — Data layer activates (Business Intelligence & Data Layer).</strong> Before any agent can act, the system needs situational awareness. The BI & Data Layer feeds four categories of structured data into the orchestration core: <em>current shipment ETAs and transit times</em>, <em>historical lane reliability scores</em> (delay probabilities and disruption severity), <em>inventory state across all nodes</em> including pipeline inventory already in transit, and <em>policy constraints</em> such as the maximum allowable expedite cost increment and minimum OTIF targets. This is the foundation — without accurate, real-time data, every downstream decision is guesswork.'
+  },
+  {
+    active: ['data','sense'],
+    glows: ['sense'],
+    flows: ['flow-1','flow-2'],
+    text: '<strong>Step 3 — Sensing agent detects impact (Impact Sensing Agent).</strong> The Impact Sensing Agent is the system\'s early warning radar. It continuously monitors for ETA drift and lead-time distribution shifts. When it detects a statistically significant deviation, it constructs a formal <em>DisruptionEvent(transport_delay)</em> object that encodes which lanes are affected, the magnitude of the delay, and an initial estimate of downstream impact. Think of this as the difference between a human planner noticing "something seems off" and a systematic, quantified incident report generated in minutes rather than hours.'
+  },
+  {
+    active: ['sense','plan'],
+    glows: ['plan'],
+    flows: ['flow-3'],
+    text: '<strong>Step 4 — Planner generates options (Logistics Planner Agent).</strong> The Planner receives the disruption event and immediately generates a set of candidate response plans. These aren\'t random — they\'re drawn from a structured action space that includes: rerouting to alternate lanes, splitting shipments across multiple routes, expediting via faster (costlier) transport modes, adjusting reorder timing for downstream nodes, and reprioritising fulfilment routes. Each option is a complete action plan with estimated cost, time, and service-level implications. The Planner doesn\'t pick a winner yet — it generates the menu.'
+  },
+  {
+    active: ['plan','sim'],
+    glows: ['sim','plan'],
+    flows: ['flow-4a','flow-4b'],
+    text: '<strong>Step 5 — Simulation & evaluation (Scenario & Twin Layer).</strong> This is where the architecture gets genuinely powerful. Each candidate plan is stress-tested against the Scenario & Twin Layer, which integrates three complementary tools. <em>OR-Gym</em> provides a network management environment where lead times are encoded on graph edges and pipeline inventories affect state evolution — enabling controlled propagation experiments. <em>AquarlisPrime</em> runs Monte Carlo simulations of delay propagation, generating probability distributions of outcomes rather than single-point estimates. <em>OpenFactoryTwin</em> offers structured digital-twin-based evaluation for counterfactual analysis. The simulation results — delay propagation curves, OTIF impact percentages, and cost deltas — flow back to the Planner, transforming candidate plans into evaluated, ranked options.'
+  },
+  {
+    active: ['plan','coord'],
+    glows: ['coord'],
+    flows: ['flow-5'],
+    text: '<strong>Step 6 — Coordination request (Coordination Agent).</strong> The Planner sends its top-ranked options to the Coordination Agent, which handles the external-facing negotiation. This agent interfaces with carriers and 3PL partners to secure capacity on alternate lanes, update delivery windows, and align on cost implications. The architecture supports NegMAS-based contract negotiation if explicit modelling of service-level agreements is needed. In practice, this is the step where the system moves from "what should we do in theory" to "what can we actually do given real-world carrier availability."'
+  },
+  {
+    active: ['coord','plan'],
+    glows: ['plan'],
+    flows: ['flow-6'],
+    text: '<strong>Step 7 — Commitments received (Coordination Agent → Planner).</strong> The Coordination Agent returns confirmed carrier commitments and any constraints discovered during negotiation — for example, an alternate lane might be available but only with a 20% cost premium, or capacity might be limited to partial shipments. The Planner uses these real-world constraints to finalise the action plan, adjusting tradeoffs based on what\'s actually feasible rather than what\'s theoretically optimal.'
+  },
+  {
+    active: ['plan','gov'],
+    glows: ['gov'],
+    flows: ['flow-7'],
+    text: '<strong>Step 8 — Governance review (Governance Agent).</strong> The finalised plan is submitted to the Governance Agent, which acts as the compliance and budget gatekeeper. It checks whether the proposed actions meet cost ceilings, comply with safety and legal requirements, and whether any OTIF degradation stays within acceptable policy thresholds. This is a critical guardrail — it prevents the system from autonomously executing a plan that might be operationally optimal but financially or legally unacceptable.'
+  },
+  {
+    active: ['gov','leader'],
+    glows: ['leader'],
+    flows: ['flow-8a','flow-8b'],
+    text: '<strong>Step 9 — Escalation to Business Leader Gate (if needed).</strong> If the Governance Agent determines that budget or OTIF targets would be significantly impacted — beyond pre-authorised thresholds — it escalates to the Business Leader Gate for human approval. This is the human-in-the-loop safeguard. Routine adjustments (say, a minor reroute within budget) pass through automatically, but a decision to expedite an entire shipment fleet at 3× cost requires a human sign-off. The diamond shape represents this decision point: <em>"Yes"</em> proceeds to execution, <em>"No"</em> sends the plan back for revision.'
+  },
+  {
+    active: ['gov','exec'],
+    glows: ['exec'],
+    flows: ['flow-9'],
+    text: '<strong>Step 10 — Execute (Execution Agent).</strong> Once authorised, the Execution Agent confirms bookings, updates TMS and ERP systems, and executes the approved reroutes and schedule adjustments. Critically, in the <em>simulation mode</em> shown in this architecture, execution happens in shadow mode — the system runs the full execution workflow without actually committing real-world changes. This allows the organisation to validate the agentic system\'s decision quality before going live, building trust and identifying edge cases in a low-risk environment.'
+  },
+  {
+    active: ['exec','learn'],
+    glows: ['learn'],
+    flows: ['flow-10'],
+    text: '<strong>Step 11 — Learn (Learning Agent).</strong> After execution, the Learning Agent receives the complete execution log, including actual delays observed versus what was predicted during the simulation step. It compares outcomes systematically, calibrates lane reliability priors (updating the probability distributions used by the Sensing Agent in future disruptions), and refines the decision policies and thresholds used by the Planner and Governance Agent. This is what makes the system genuinely adaptive — each disruption makes the next response faster and more accurate.'
+  },
+  {
+    active: ['learn','plan','output'],
+    glows: ['output'],
+    flows: ['flow-11','flow-12'],
+    text: '<strong>Step 12 — Feedback loop & output.</strong> The calibration updates from the Learning Agent flow back to the Planner, closing the learning loop. The final Operations Output is a complete package: approved actions (reroutes, schedule adjustments), an updated digital twin state reflecting the new network configuration, and a full audit log documenting every agent\'s reasoning, every simulation result, and every governance decision. The audit log is particularly important for regulatory compliance and for building organisational confidence in the agentic system\'s decision-making.'
+  }
+];
+
+const allBoxes = ['trigger','data','sim','sense','plan','coord','gov','leader','exec','learn','output'];
+const allFlows = ['flow-1','flow-2','flow-3','flow-4a','flow-4b','flow-5','flow-6','flow-7','flow-8a','flow-8b','flow-9','flow-10','flow-11','flow-12'];
+let current = -1;
+let playing = false;
+let timer = null;
+let speed = 8000;
+
+const dotsEl = document.getElementById('dots');
+steps.forEach((_, i) => {
+  const d = document.createElement('div');
+  d.className = 'dot';
+  d.onclick = () => goTo(i);
+  dotsEl.appendChild(d);
+});
+
+function render() {
+  allBoxes.forEach(id => {
+    const el = document.getElementById('box-' + id);
+    const gl = document.getElementById('glow-' + id);
+    el.classList.remove('active','done');
+    if (gl) gl.classList.remove('active');
+  });
+  allFlows.forEach(id => {
+    document.getElementById(id).classList.remove('active');
+  });
+
+  if (current < 0) {
+    document.getElementById('narration').innerHTML = 'Press <strong>Play</strong> or <strong>Next</strong> to walk through all 12 steps of the transport delay agentic architecture. Each step highlights the active agents, shows data flowing between them, and provides a detailed explanation of what is happening at that stage. Use the speed slider to control auto-advance timing.';
+    dotsEl.querySelectorAll('.dot').forEach(d => { d.className = 'dot'; });
+    return;
+  }
+
+  const s = steps[current];
+  s.active.forEach(id => document.getElementById('box-' + id).classList.add('active'));
+  s.glows.forEach(id => {
+    const gl = document.getElementById('glow-' + id);
+    if (gl) gl.classList.add('active');
+  });
+  s.flows.forEach(id => document.getElementById(id).classList.add('active'));
+
+  for (let i = 0; i < current; i++) {
+    steps[i].active.forEach(id => {
+      const el = document.getElementById('box-' + id);
+      if (!el.classList.contains('active')) el.classList.add('done');
+    });
+  }
+
+  document.getElementById('narration').innerHTML = s.text;
+  document.getElementById('narration').scrollTop = 0;
+  dotsEl.querySelectorAll('.dot').forEach((d, i) => {
+    d.className = 'dot' + (i === current ? ' active' : i < current ? ' done' : '');
+  });
+}
+
+function goTo(i) { current = i; render(); }
+function next() { if (current < steps.length - 1) { current++; render(); } else { stopPlay(); } }
+function prev() { if (current > 0) { current--; render(); } }
+function togglePlay() { if (playing) stopPlay(); else startPlay(); }
+
+function startPlay() {
+  playing = true;
+  document.getElementById('playBtn').innerHTML = '&#9646;&#9646; Pause';
+  document.getElementById('playBtn').classList.add('active');
+  if (current >= steps.length - 1) current = -1;
+  tick();
+}
+
+function stopPlay() {
+  playing = false;
+  clearTimeout(timer);
+  document.getElementById('playBtn').innerHTML = '&#9654; Play';
+  document.getElementById('playBtn').classList.remove('active');
+}
+
+function tick() {
+  if (!playing) return;
+  next();
+  if (current < steps.length - 1) { timer = setTimeout(tick, speed); }
+  else { setTimeout(stopPlay, speed); }
+}
+
+function setSpeed(v) {
+  speed = (4 - parseFloat(v)) * 2500 + 1000;
+  document.documentElement.style.setProperty('--speed', (parseFloat(v)) + 's');
+}
+
+render();
+setTimeout(startPlay, 800);
+</script>
+</body>
+</html>
